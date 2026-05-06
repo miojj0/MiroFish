@@ -6,15 +6,18 @@ import service, { requestWithRetry } from './index'
  * @returns {Promise}
  */
 export function generateOntology(formData) {
-  return requestWithRetry(() => 
+  return requestWithRetry(() =>
     service({
       url: '/api/graph/ontology/generate',
       method: 'post',
       data: formData,
+      timeout: 900000, // 15分钟超时用于文件上传和本体生成
       headers: {
         'Content-Type': 'multipart/form-data'
       }
-    })
+    }),
+    5,    // maxRetries - 尝试更多次
+    2000  // initial delay 2秒
   )
 }
 

@@ -42,7 +42,8 @@ def main():
     debug = Config.DEBUG
 
     # 启动服务
-    app.run(host=host, port=port, debug=debug, threaded=True)
+    # timeout=900 用于长时间运行的请求（如文件上传和本体生成）
+    app.run(host=host, port=port, debug=debug, threaded=True, timeout=900)
 
 
 if __name__ == '__main__':
