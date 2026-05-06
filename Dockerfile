@@ -16,8 +16,9 @@ COPY frontend/package.json frontend/package-lock.json ./frontend/
 COPY backend/pyproject.toml backend/uv.lock ./backend/
 
 # 安装依赖（Node + Python）
-RUN npm ci \
-  && npm ci --prefix frontend \
+# 使用 npm install 而不是 npm ci，更容易处理 lock 文件的变化
+RUN npm install \
+  && npm install --prefix frontend \
   && cd backend && uv sync --frozen
 
 # 复制项目源码
