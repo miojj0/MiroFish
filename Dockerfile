@@ -1,31 +1,24 @@
 FROM python:3.11
 
-# 安装 Node.js （满足 >=18）及必要工具
-RUN apt-get update \
-  && apt-get install -y --no-install-recommends nodejs npm \
-  && rm -rf /var/lib/apt/lists/*
+# Instalar Node.js
+RUN apt-get update && apt-get install -y nodejs npm && rm -rf /var/lib/apt/lists/*
 
-# 从 uv 官方镜像复制 uv
+# Instalar uv
 COPY --from=ghcr.io/astral-sh/uv:0.9.26 /uv /uvx /bin/
 
 WORKDIR /app
 
-# 先复制依赖描述文件以利用缓存
-COPY package.json ./
-COPY frontend/package.json ./frontend/
-COPY backend/pyproject.toml backend/uv.lock ./backend/
+# Copiar tudo
+COPY . .
 
-# 安装 Node 依赖和构建前端
-RUN npm install --prefix frontend \
-  && npm run build --prefix frontend
-
-# 安装 Python 依赖
+# Instalar dependências
+RUN npm install --prefix frontend && npm install
 RUN cd backend && uv sync --frozen
 
-# 复制项目源码
-COPY . .
+# Build frontend
+RUN npm run build --prefix frontend
 
 EXPOSE 3000 5001
 
-# 仅启动后端（前端已构建为静态文件）
+# Rodar apenas backend (serve frontend estático)
 CMD ["npm", "start"]
