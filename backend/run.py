@@ -32,15 +32,15 @@ def main():
             print(f"  - {err}")
         print("\n请检查 .env 文件中的配置")
         sys.exit(1)
-    
+
     # 创建应用
     app = create_app()
-    
-    # 获取运行配置
+
+    # 获取运行配置（支持 Railway 的 PORT 环境变量）
     host = os.environ.get('FLASK_HOST', '0.0.0.0')
-    port = int(os.environ.get('FLASK_PORT', 5001))
+    port = int(os.environ.get('PORT') or os.environ.get('FLASK_PORT', 5000))
     debug = Config.DEBUG
-    
+
     # 启动服务
     app.run(host=host, port=port, debug=debug, threaded=True)
 
