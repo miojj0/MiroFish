@@ -5,15 +5,19 @@ LLM客户端封装
 
 import json
 import re
+import time
+import logging
 from typing import Optional, Dict, Any, List
 from openai import OpenAI
 
 from ..config import Config
 
+logger = logging.getLogger(__name__)
+
 
 class LLMClient:
     """LLM客户端"""
-    
+
     def __init__(
         self,
         api_key: Optional[str] = None,
@@ -23,13 +27,15 @@ class LLMClient:
         self.api_key = api_key or Config.LLM_API_KEY
         self.base_url = base_url or Config.LLM_BASE_URL
         self.model = model or Config.LLM_MODEL_NAME
-        
+
         if not self.api_key:
             raise ValueError("LLM_API_KEY 未配置")
-        
+
+        # 配置 OpenAI 客户端，设置更长的超时时间（10分钟）用于长文本处理
         self.client = OpenAI(
             api_key=self.api_key,
-            base_url=self.base_url
+            base_url=self.base_url,
+            timeout=600
         )
     
     def chat(
@@ -71,33 +77,52 @@ class LLMClient:
         self,
         messages: List[Dict[str, str]],
         temperature: float = 0.3,
-        max_tokens: int = 4096
+        max_tokens: int = 4096,
+        max_retries: int = 3
     ) -> Dict[str, Any]:
         """
-        发送聊天请求并返回JSON
-        
+        发送聊天请求并返回JSON（带重试机制）
+
         Args:
             messages: 消息列表
             temperature: 温度参数
             max_tokens: 最大token数
-            
+            max_retries: 最大重试次数
+
         Returns:
             解析后的JSON对象
         """
-        response = self.chat(
-            messages=messages,
-            temperature=temperature,
-            max_tokens=max_tokens,
-            response_format={"type": "json_object"}
-        )
-        # 清理markdown代码块标记
-        cleaned_response = response.strip()
-        cleaned_response = re.sub(r'^```(?:json)?\s*\n?', '', cleaned_response, flags=re.IGNORECASE)
-        cleaned_response = re.sub(r'\n?```\s*$', '', cleaned_response)
-        cleaned_response = cleaned_response.strip()
+        last_error = None
 
-        try:
-            return json.loads(cleaned_response)
-        except json.JSONDecodeError:
-            raise ValueError(f"LLM返回的JSON格式无效: {cleaned_response}")
+        for attempt in range(max_retries):
+            try:
+                response = self.chat(
+                    messages=messages,
+                    temperature=temperature,
+                    max_tokens=max_tokens,
+                    response_format={"type": "json_object"}
+                )
+                # 清理markdown代码块标记
+                cleaned_response = response.strip()
+                cleaned_response = re.sub(r'^```(?:json)?\s*\n?', '', cleaned_response, flags=re.IGNORECASE)
+                cleaned_response = re.sub(r'\n?```\s*$', '', cleaned_response)
+                cleaned_response = cleaned_response.strip()
+
+                try:
+                    return json.loads(cleaned_response)
+                except json.JSONDecodeError as e:
+                    last_error = ValueError(f"LLM返回的JSON格式无效: {cleaned_response}")
+                    if attempt < max_retries - 1:
+                        logger.warning(f"JSON 解析失败，重试 ({attempt + 1}/{max_retries}): {str(e)}")
+                        time.sleep(2 ** attempt)  # 指数退避
+                    else:
+                        raise last_error
+
+            except Exception as e:
+                last_error = e
+                if attempt < max_retries - 1:
+                    logger.warning(f"LLM 调用失败，重试 ({attempt + 1}/{max_retries}): {str(e)}")
+                    time.sleep(2 ** attempt)  # 指数退避
+                else:
+                    raise
 
