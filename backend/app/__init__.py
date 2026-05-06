@@ -68,6 +68,21 @@ def create_app(config_class=Config):
     app.register_blueprint(simulation_bp, url_prefix='/api/simulation')
     app.register_blueprint(report_bp, url_prefix='/api/report')
     
+    # 服务前端静态文件（生产环境）
+    frontend_dist_path = os.path.join(os.path.dirname(__file__), '../../frontend/dist')
+    if os.path.exists(frontend_dist_path):
+        @app.route('/', defaults={'path': ''})
+        @app.route('/<path:path>')
+        def serve_frontend(path):
+            from flask import send_from_directory
+            if path and os.path.exists(os.path.join(frontend_dist_path, path)):
+                return send_from_directory(frontend_dist_path, path)
+            # 对于 SPA 路由，返回 index.html
+            index_path = os.path.join(frontend_dist_path, 'index.html')
+            if os.path.exists(index_path):
+                return send_from_directory(frontend_dist_path, 'index.html')
+            return {'error': 'Frontend not found'}, 404
+    
     # 健康检查
     @app.route('/health')
     def health():

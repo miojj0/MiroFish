@@ -11,23 +11,21 @@ COPY --from=ghcr.io/astral-sh/uv:0.9.26 /uv /uvx /bin/
 WORKDIR /app
 
 # 先复制依赖描述文件以利用缓存
-COPY package.json package-lock.json ./
-COPY frontend/package.json frontend/package-lock.json ./frontend/
+COPY package.json ./
+COPY frontend/package.json ./frontend/
 COPY backend/pyproject.toml backend/uv.lock ./backend/
 
-# 安装依赖（Node + Python）
-# 使用 npm install 而不是 npm ci，更容易处理 lock 文件的变化
-RUN npm install \
-  && npm install --prefix frontend \
-  && cd backend && uv sync --frozen
+# 安装 Node 依赖和构建前端
+RUN npm install --prefix frontend \
+  && npm run build --prefix frontend
+
+# 安装 Python 依赖
+RUN cd backend && uv sync --frozen
 
 # 复制项目源码
 COPY . .
 
-# 构建前端
-RUN npm run build
-
 EXPOSE 3000 5001
 
-# 启动后端和前端生产服务
+# 仅启动后端（前端已构建为静态文件）
 CMD ["npm", "start"]
