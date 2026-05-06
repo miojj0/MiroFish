@@ -1,6 +1,6 @@
 FROM python:3.11
 
-# Instalar Node.js
+# Instalar Node.js e npm (para scripts se necessário)
 RUN apt-get update && apt-get install -y nodejs npm && rm -rf /var/lib/apt/lists/*
 
 # Instalar uv
@@ -11,14 +11,10 @@ WORKDIR /app
 # Copiar tudo
 COPY . .
 
-# Instalar dependências
-RUN npm install --prefix frontend && npm install
+# Instalar apenas Python (frontend já está buildado em dist/)
 RUN cd backend && uv sync --frozen
-
-# Build frontend
-RUN npm run build --prefix frontend
 
 EXPOSE 3000 5001
 
-# Rodar apenas backend (serve frontend estático)
-CMD ["npm", "start"]
+# Rodar backend (serve frontend/dist como estático)
+CMD ["cd", "backend", "&&", "uv", "run", "python", "run.py"]
