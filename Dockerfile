@@ -17,4 +17,4 @@ RUN cd backend && uv sync --frozen
 EXPOSE 3000 5001
 
 # Rodar backend (serve frontend/dist como estático)
-CMD ["cd", "backend", "&&", "uv", "run", "python", "run.py"]
+CMD sh -c "cd backend && uv run python run.py"
